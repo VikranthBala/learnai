@@ -37,9 +37,9 @@ class NN_Model(nn.Module):
         in_channels = self.in_channels
 
         actvationFunction = nn.ReLU()
-        if self.activation == "sigmoid":
+        if self.activation == "Sigmoid":
             actvationFunction = nn.Sigmoid()
-        elif self.activation == "tanh":
+        elif self.activation == "Tanh":
             actvationFunction = nn.Tanh()
 
 
@@ -65,6 +65,6 @@ class NN_Model(nn.Module):
 
         return nn.Sequential(*layers)
     
-model = NN_Model(3,"ReLU",5)
-x = torch.rand(1,3,28,28)
-print(model(x).shape)
+def CreateModel(in_channels=3,actv="ReLU",depth_layer=10):
+    model = NN_Model(in_channels,actv,depth_layer)
+    return model
