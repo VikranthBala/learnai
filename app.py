@@ -2,6 +2,7 @@ import streamlit as st
 
 from sklearn.datasets import fetch_openml
 from sklearn.model_selection import train_test_split
+from sklearn.metrics import accuracy_score
 
 from matplotlib import pyplot as plt
 
@@ -32,11 +33,9 @@ y = mnist.target.astype('int64')
 
 X = X/ 255.
 
-print(X.min(),X.max())
+st.write("The total size of the dataset is: "+str(totalData))
 
-st.write("The total size of the dataset is: "+totalData)
-
-selectedData = st.slider("DATA SAMPLES ",1000,10000,value=5000)
+selectedData = st.slider("DATA SAMPLES ",1000,10000,value=5000,step=1000)
 
 st.write('''This data needs to be divided into training and testing data. 
         The model will use the training data during the training step, and the testing data will not be seen by the model''')
@@ -46,16 +45,17 @@ st.write("lets split into data into train and test sets, by default as seen in t
 sliderValue = st.slider("choose training data percentage",10,100,step=5,value=70)
 
 
-def processData(selectedData=2000,ratio=0.7):
-    X_train,X_test,y_train,y_test = train_test_split(X[:selectedData],y[:selectedData],test_size=ratio,random_state=42)
+def processData(X,y,selectedData=2000,ratio=0.7):
+    Xre = X.reshape(-1, 1, 28, 28)
+    X_train,X_test,y_train,y_test = train_test_split(Xre[:selectedData],y[:selectedData],test_size=ratio,random_state=42)
     assert(X_train.shape[0]+X_test.shape[0] == selectedData)
     return X_train,X_test,y_train,y_test
     
 
-selectdAct = st.select_slider("activations",options=["ReLU","Sigmoid","Tanh"],value="ReLU")
+selectedAct = st.radio("activations",options=["ReLU","Sigmoid","Tanh"],index=0)
 selectedDepth = st.slider("depth of layers",1,10,step=1,value=10)
 
-processData(selectedData,sliderValue/100)
+# processData(X,y,selectedData,sliderValue/100)
 
 def loadModel(in_channels,selectdAct,selectedDepth):
     newModel = CreateModel(in_channels,selectdAct,selectedDepth)
@@ -63,16 +63,34 @@ def loadModel(in_channels,selectdAct,selectedDepth):
 
 epochs = st.slider("epochs",1,100,step=1,value=10)
 
-def trainModel(model,epochs=10):
+pressed = st.button("Train model",type="primary")
+
+@st.cache_resource
+def trainModel(X_train,y_train,epochs=10):
     torch.manual_seed(0)
-    model = loadModel(3,selectdAct,selectedDepth)
+    st.write('the data lenght is: ',selectedData)
+    st.write("The epoch is ",epochs)
+    model = loadModel(1,selectedAct,selectedDepth)
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
-    net = NeuralNetClassifier(model,max_epochs=epochs,lr=0.01,device='cuda')
-    #Processed Data:
-    X_train,X_test,y_train,y_test = processData(selectedData,sliderValue/100)
-    model.fit(X_train,y_train)
-    pass
-    
+    net = NeuralNetClassifier(model,max_epochs=epochs,lr=0.1,device=device)
+    with st.spinner("Training in progress...",cache=False):
+        net.fit(X_train,y_train)
+    return net
+
+X_train,X_test,y_train,y_test = processData(X,y,selectedData,sliderValue/100)
+
+print("pressed state = ",pressed)
+if pressed:
+    trainedModel = trainModel(X_train,y_train,epochs)
+
+predict = st.button("Test Model",type="primary")
+
+if predict:
+    trainedModel = trainModel(X_train,y_train,epochs)
+    preds = trainedModel.predict(X_test)
+    score = accuracy_score(y_test,preds)
+    st.success("the model predicted with an accuracy of :"+str(score))
+    st.write('Accuracy with the current config: '+str(score))
 
 
 
